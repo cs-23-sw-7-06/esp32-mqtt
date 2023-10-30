@@ -2,3 +2,5 @@ build/
 .cache/
 sdkconfig.ci
 sdkconfig.old
+
+export.sh
