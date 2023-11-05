@@ -1,112 +1,175 @@
-#include "main.h"
+#include <stdlib.h>
 
 #include <inttypes.h>
-#include "sdkconfig.h"
+#include <sdkconfig.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/event_groups.h>
 #include <mqtt_client.h>
 #include <esp_wifi.h>
+#include <esp_system.h>
+#include <esp_event.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 
 #include <iostream>
 
-using namespace std;
-
 #define DELAY 250 // arbitrary tick delay to make sure stuff is properly initialized before proceeding to the next boot step
+#define WIFI_SUCCESS_BIT BIT0
+#define WIFI_FAIL_BIT BIT1
 
-void print_err(esp_err_t err){
-	cout << "Error!" << endl << "\t\033[38;2;255;0;0m";
+uint8_t ssid[32] = "p7-hotspot";
+uint8_t password[32] = "";
+
+uint8_t max_retries = 10;
+uint8_t retries = 0;
+
+EventGroupHandle_t event_group;
+
+
+
+void try_exec(esp_err_t err){
+	if(err == ESP_OK) return;
+
+	std::cout << "Error!" << std::endl << "\t\033[38;2;255;0;0m";
 	switch (err){
 		case ESP_ERR_WIFI_NOT_INIT:
-			cout << "Wifi is not initialized!";
+			std::cout << "Wifi is not initialized!";
 			break;
 		case ESP_ERR_INVALID_ARG:
-			cout << "Invalid arguments!";
+			std::cout << "Invalid arguments!";
 			break;
 		case ESP_ERR_NO_MEM:
-			cout << "Out of memory!";
+			std::cout << "Out of memory!";
 			break;
 		case ESP_ERR_WIFI_CONN:
-			cout << "Internal WiFi error!";
+			std::cout << "Internal WiFi error!";
 			break;
 		case ESP_FAIL:
-			cout << "Other error!";
+			std::cout << "Other error!";
 			break;
 		case ESP_ERR_NVS_NOT_INITIALIZED:
-			cout << "NVS not initialized!";
+			std::cout << "NVS not initialized!";
 			break;
 		case ESP_ERR_NVS_NO_FREE_PAGES:
-			cout << "NVS Storage has no empty pages!";
+			std::cout << "NVS Storage has no empty pages!";
 			break;
 		case ESP_ERR_NOT_FOUND:
-			cout << "No NVS partition!";
+			std::cout << "No NVS partition!";
 			break;
 		default:
-			cout << "Error not configured: " << err;
+			std::cout << "Error not configured: " << err;
 			break;
 	}
-	cout << "\033[0m" << endl;
+	std::cout << "\033[0m" << std::endl;
 }
 
-void print_ok(){
-	cout << "\033[38;2;0;255;0m \tSuccess!\033[0m" << endl;
-}
 
-void mqtt_published_handler(){
-	cout << "published" << endl;
+void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data){
+	std::cout << "event handler called" << std::endl;
+	switch(event_id){
+		case WIFI_EVENT_STA_START:
+			std::cout << "Connecteding!" << std::endl;
+			try_exec(esp_wifi_connect());
+			break;
+		case WIFI_EVENT_STA_DISCONNECTED:
+			std::cout << "Disconnected! retrying...";
+			printf("%d", retries);
+			std::cout << std::endl;
+			retries++;
+			if(retries <= max_retries){
+				try_exec(esp_wifi_connect());
+				vTaskDelay(DELAY);
+			}
+			else{
+				xEventGroupSetBits(event_group, WIFI_FAIL_BIT);
+			}
+			break;
+		case IP_EVENT_STA_GOT_IP:
+			retries = 0;
+			//ip_event_got_ip_t *event = (ip_event_got_ip_t*) event_data;
+			std::cout << "Got IP Address: " 
+				//<< IP2STR(&event->ip_info.ip) 
+				<< std::endl;
+			xEventGroupSetBits(event_group, WIFI_SUCCESS_BIT);
+			break;
+	}
 }
 
 extern "C" void app_main(void) {
-	esp_err_t err;
 
 // ################################ NVS INITIALIZATION ################################
-	cout << "Initializing NVS partition" << endl;
-	if(!(err = nvs_flash_init())){
-		print_ok();
-	} else print_err(err);
+	std::cout << "Initializing NVS partition" << std::endl;
+	esp_err_t ret = nvs_flash_init();
+	if(ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND){
+		try_exec(nvs_flash_erase());
+		try_exec(nvs_flash_init());
+	}
+
 	vTaskDelay(DELAY);
 // ################################ END NVS INITIALIZATION ################################
 
 // ################################ WIFI INITIALIZATION ################################
-	cout << "Configuring WiFi" << endl;
+	std::cout << "Configuring WiFi" << std::endl;
 	wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT();
+
+	uint8_t MAC[6] = {0xb8, 0x8a, 0x60, 0x4d, 0x4b, 0x62};
 
 	wifi_config_t wifi_config = {
 		.sta = {
-			.ssid = "p7-hotspot",
-			.scan_method = WIFI_FAST_SCAN
+			.ssid = *ssid,
+			.threshold = {
+				.authmode = WIFI_AUTH_OPEN
+			}
 		}
 	};
+
+	event_group = xEventGroupCreate();
 	vTaskDelay(DELAY);
 
-	cout << "Initializing WiFi...";
-	if(!(err = esp_wifi_init(&wifi_init_config))){
-		print_ok();
-	} else print_err(err);
+	std::cout << "Initializing WiFi...";
+	try_exec(esp_netif_init());
+
+	try_exec(esp_event_loop_create_default());
+
+	esp_netif_t *network = esp_netif_create_default_wifi_sta();
+
+	esp_event_handler_instance_t instance_any_id;
+	esp_event_handler_instance_t instance_got_ip;
+
+	try_exec(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, &instance_any_id));
+	try_exec(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip));
+
+	try_exec(esp_wifi_init(&wifi_init_config));
+
 	vTaskDelay(DELAY);
 
-	cout << "Setting WiFi configuration...";
-	if(!(err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config))){
-		print_ok();
-	} else print_err(err);
+	std::cout << "Setting WiFi configuration...";
+	try_exec(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
 
-	cout << "Starting WiFi...";
-	if(!(err = esp_wifi_start())){
-		print_ok();
-	} else print_err(err);
-	vTaskDelay(DELAY);
+	try_exec(esp_wifi_set_mode(WIFI_MODE_STA));
 
-	cout << "Connecting WiFi...";
-	if(!(err = esp_wifi_connect())){
-		print_ok();
-	} else print_err(err);
+	std::cout << "Starting WiFi...";
+	try_exec(esp_wifi_start());
+
+	EventBits_t bits = xEventGroupWaitBits(event_group, WIFI_SUCCESS_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+
+	if(bits & WIFI_SUCCESS_BIT){
+		std::cout << "Successfully connected to: " << ssid << std::endl;
+	}
+	else if(bits & WIFI_FAIL_BIT){
+		std::cout << "Failed to connect to: " << ssid << std::endl;
+	}
+	else {
+		std::cout << "Unknown error!" << std::endl;
+	}
+
 	vTaskDelay(DELAY);
 
 // ################################ END WIFI INITIALIZATION ################################
 
 // ################################ MQTT INITIALIZATION ################################
-	cout << "Configuring MQTT" << endl;
+	/*std::cout << "Configuring MQTT" << std::endl;
 	const esp_mqtt_client_config_t mqtt_config = {
 		.broker = {
 			.address = {
@@ -116,17 +179,16 @@ extern "C" void app_main(void) {
 	};
 	vTaskDelay(DELAY);
 
-	cout << "Initializing MQTT" << endl;
+	std::cout << "Initializing MQTT" << std::endl;
 	esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_config);
 
-	esp_mqtt_client_register_event(client, MQTT_EVENT_PUBLISHED, (esp_event_handler_t) mqtt_published_handler, client);
+	//try_exec(esp_mqtt_client_register_event(client, MQTT_EVENT_PUBLISHED, (esp_event_handler_t) mqtt_published_handler, client));
 	vTaskDelay(DELAY);
 
-	cout << "Starting MQTT";
-	if(!(err = esp_mqtt_client_start(client))){
-		cout << "Success!" << endl;
-	} else print_err(err);
-	vTaskDelay(DELAY);
+	std::cout << "Starting MQTT";
+	try_exec(esp_mqtt_client_start(client));
+
+	vTaskDelay(DELAY);*/
 // ################################ END MQTT INITIALIZATION ################################
 
 
