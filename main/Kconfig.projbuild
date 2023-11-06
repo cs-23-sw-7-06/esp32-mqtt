@@ -2,13 +2,13 @@ menu "WiFi Configuration"
 
     config ESP_WIFI_SSID
         string "WiFi SSID"
-        default "myssid"
+        default "*EDITME*"
         help
             SSID (network name) for the example to connect to.
 
     config ESP_WIFI_PASSWORD
         string "WiFi Password"
-        default "mypassword"
+        default "*EDITME*"
         help
             WiFi password (WPA or WPA2) for the example to use.
 
@@ -64,4 +64,32 @@ menu "WiFi Configuration"
             bool "WAPI PSK"
     endchoice
 
+endmenu
+
+menu "MQTT Configuration"
+    config MQTT_URI
+        string "MQTT server URI"
+        default "*EDITME*"
+        help
+            URI to the MQTT server
+
+    config INITIAL_MESSAGE_TOPIC
+        string "Initial MQTT message topic"
+        default "placeholder"
+        help
+            Initial message topic to be sent by MQTT client
+
+    config INITIAL_MESSAGE_PAYLOAD
+        string "Initial MQTT message payload"
+        default "placeholder"
+        help
+            Initial message payload to be sent by MQTT client
+endmenu
+
+menu "Measurement Station Configuration"
+    config MEASUREMENT_SEND_PERIOD
+        string "Define the period between measurements"
+        default 100
+        help
+            specify send period for measurements
 endmenu

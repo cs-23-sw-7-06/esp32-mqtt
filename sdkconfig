@@ -341,8 +341,8 @@ CONFIG_PARTITION_TABLE_MD5=y
 #
 # WiFi Configuration
 #
-CONFIG_ESP_WIFI_SSID="p7-hotspot"
-CONFIG_ESP_WIFI_PASSWORD="yeetyeetxd"
+CONFIG_ESP_WIFI_SSID="CentralHub"
+CONFIG_ESP_WIFI_PASSWORD="mynamejeff123"
 # CONFIG_ESP_WPA3_SAE_PWE_HUNT_AND_PECK is not set
 # CONFIG_ESP_WPA3_SAE_PWE_HASH_TO_ELEMENT is not set
 CONFIG_ESP_WPA3_SAE_PWE_BOTH=y
@@ -350,13 +350,27 @@ CONFIG_ESP_WIFI_PW_ID=""
 CONFIG_ESP_MAXIMUM_RETRY=5
 # CONFIG_ESP_WIFI_AUTH_OPEN is not set
 # CONFIG_ESP_WIFI_AUTH_WEP is not set
-CONFIG_ESP_WIFI_AUTH_WPA_PSK=y
+# CONFIG_ESP_WIFI_AUTH_WPA_PSK is not set
 # CONFIG_ESP_WIFI_AUTH_WPA2_PSK is not set
-# CONFIG_ESP_WIFI_AUTH_WPA_WPA2_PSK is not set
+CONFIG_ESP_WIFI_AUTH_WPA_WPA2_PSK=y
 # CONFIG_ESP_WIFI_AUTH_WPA3_PSK is not set
 # CONFIG_ESP_WIFI_AUTH_WPA2_WPA3_PSK is not set
 # CONFIG_ESP_WIFI_AUTH_WAPI_PSK is not set
 # end of WiFi Configuration
+
+#
+# MQTT Configuration
+#
+CONFIG_MQTT_URI="mqtt://10.0.0.1:4000"
+CONFIG_INITIAL_MESSAGE_TOPIC="MQTT Initial message"
+CONFIG_INITIAL_MESSAGE_PAYLOAD="Hehe this message is set by menuconfig :P"
+# end of MQTT Configuration
+
+#
+# Measurement Station Configuration
+#
+CONFIG_MEASUREMENT_SEND_PERIOD="250"
+# end of Measurement Station Configuration
 
 #
 # Compiler options
