@@ -22,7 +22,14 @@
                 "/opt/esp-idf/components/esp_netif/include",
                 "/opt/esp-idf/components/esp_netif/linux/stubs/include",
                 "/opt/esp-idf/components/nvs_flash/include",
-                "/opt/esp-idf/components/esp_partition/include"
+                "/opt/esp-idf/components/esp_partition/include",
+                "/opt/esp-idf/components/log/include",
+                "/opt/esp-idf/components/esp_common/include",
+                "/opt/esp-idf/components/lwip/lwip/src/include",
+                "/opt/esp-idf/components/lwip/port/include",
+                "/opt/esp-idf/components/lwip/port/freertos/include",
+                "/opt/esp-idf/components/lwip/port/linux/include",
+                "/opt/esp-idf/components/linux/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
