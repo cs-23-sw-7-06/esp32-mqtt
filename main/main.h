@@ -10,6 +10,8 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include <esp_console.h>
+#include "argtable3/argtable3.h"
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -48,6 +50,12 @@
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_WPA3_PSK
 #elif CONFIG_ESP_WIFI_AUTH_WAPI_PSK
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
+#endif
+
+#if CONFIG_DEBUG_MODE_ON
+#define DEBUG_MODE 1
+#elif CONFIG_DEBUG_MODE_OFF
+#define DEBUG_MODE 0
 #endif
 
 #define TAG "Measurement Node"

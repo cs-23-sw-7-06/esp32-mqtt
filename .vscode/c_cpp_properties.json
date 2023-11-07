@@ -29,7 +29,7 @@
                 "/opt/esp-idf/components/lwip/port/include",
                 "/opt/esp-idf/components/lwip/port/freertos/include",
                 "/opt/esp-idf/components/lwip/port/linux/include",
-                "/opt/esp-idf/components/linux/include"
+                "/opt/esp-idf/components/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

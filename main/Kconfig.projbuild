@@ -88,8 +88,18 @@ endmenu
 
 menu "Measurement Station Configuration"
     config MEASUREMENT_SEND_PERIOD
-        string "Define the period between measurements"
+        int "Define the period between measurements"
         default 100
         help
             specify send period for measurements
+    choice DEBUG_MODE
+        prompt "Debug mode enabled?"
+        default DEBUG_MODE_OFF
+        help
+            Enable debugging mode for measurement station
+        config DEBUG_MODE_ON
+            bool "on"
+        config DEBUG_MODE_OFF
+            bool "off"
+    endchoice
 endmenu
