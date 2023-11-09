@@ -1,17 +1,21 @@
-#include "wifi.c"
 #include "mqtt.c"
+#include "wifi.c"
 
-void measurement_loop(void){
+esp_err_t measurement_loop(int argc, char **argv) {
     ESP_LOGI(TAG, "starting measurement loop");
-    while(true){
+    while (true) {
         srand(time(NULL));
-        char* measurement[sizeof(int)];
+        char measurement[sizeof(int)];
         sprintf(measurement, "%d", rand());
         mqtt_send_message("example measurement", measurement);
-        long now, then;
-        now = then = clock();
-        while(now-then < (CLOCKS_PER_SEC/1000)*CONFIG_MEASUREMENT_SEND_PERIOD) now = clock();
+
+        vTaskDelay((CONFIG_MEASUREMENT_SEND_PERIOD*CLOCKS_PER_SEC)/1000);
     }
+    return ESP_OK;
+}
+
+void measurement_loop_task(char **args){
+    measurement_loop(0, NULL);
 }
 
 static struct {
@@ -20,60 +24,62 @@ static struct {
     struct arg_end *end;
 } send_args;
 
-int send(int argc, char** argv){
-    arg_parse(argc, argv, (void**) &send_args);
-    ESP_LOGI(TAG, "Topic: %s", send_args.topic->sval[0]);
-    ESP_LOGI(TAG, "Payload: %s", send_args.payload->sval[0]);
-    mqtt_send_message(send_args.topic->sval[0], send_args.payload->sval[0]);
-    return 0;
+esp_err_t send(int argc, char **argv) {
+    arg_parse(argc, argv, (void **)&send_args);
+    const char* topic = *(send_args.topic->sval);
+    const char* payload = *(send_args.payload->sval);
+    ESP_LOGI(TAG, "Topic: %s", topic);
+    ESP_LOGI(TAG, "Payload: %s", payload);
+    mqtt_send_message(topic, payload);
+    return ESP_OK;
 }
 
 int state = 0;
 
-int state_machine(void){
+esp_err_t state_machine(int argc, char **argv) {
     switch(state){
         case 0:
             nvs_init();
             break;
         case 1:
-            wifi_init();
+            wifi_init(0, NULL);
             break;
         case 2:
-            wifi_start();
+            wifi_start(0, NULL);
             break;
         case 3:
-            mqtt_init();
+            mqtt_init(0, NULL);
             break;
         case 4:
-            mqtt_start();
+            mqtt_start(0, NULL);
             break;
         case 5:
-            measurement_loop();
+            measurement_loop(0, NULL);
             break;
         default:
             ESP_LOGW(TAG, "All states in state machine has been covered!");
-            return 1;
+            return ESP_ERR_NOT_SUPPORTED;
     }
     state++;
-    return 0;
+    return ESP_OK;
 }
 
-int init_all(){
-    wifi_init();    
-    wifi_start();   
-    mqtt_init();    
-    mqtt_start();   
+esp_err_t init_all(int argc, char **argv) {
+    wifi_init(0, NULL);
+    wifi_start(0, NULL);
+    mqtt_init(0, NULL);
+    mqtt_start(0, NULL);
     state = 5;
-    return 0;
+    return ESP_OK;
 }
 
-void app_main(void){
-    nvs_init(); 
-    if(DEBUG_MODE){ 
+void app_main(void) {
+    nvs_init();
+    if(DEBUG_MODE){
         ESP_LOGI(TAG, "Entering debug mode");
         esp_console_repl_t *repl = NULL;
         esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-        repl_config.prompt =  "esp-debug >";
+        repl_config.prompt = "esp-debug >";
         repl_config.max_cmdline_length = 15;
         ESP_ERROR_CHECK(esp_console_register_help_command());
         const esp_console_cmd_t run_cmd = {
@@ -147,9 +153,9 @@ void app_main(void){
         esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
         ESP_ERROR_CHECK(esp_console_new_repl_uart(&hw_config, &repl_config, &repl));
         ESP_ERROR_CHECK(esp_console_start_repl(repl));
-    }
-    else{
-        init_all();
-        measurement_loop();
+    } 
+    else {
+        init_all(0, NULL);
+        xTaskCreate(measurement_loop_task, "measurement_loop", 4096, NULL, 10, NULL);
     }
 }

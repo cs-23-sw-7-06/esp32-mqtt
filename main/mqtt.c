@@ -2,12 +2,10 @@
 
 esp_mqtt_client_handle_t mqtt_client;
 
-
-static void mqtt_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data){
-    esp_mqtt_event_t *event = (esp_mqtt_event_t*)event_data;
-    esp_mqtt_client_handle_t client =  event->client;
+static void mqtt_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    esp_mqtt_event_t *event = (esp_mqtt_event_t *)event_data;
     ESP_LOGI(TAG, "MQTT event handler called");
-    switch(event_id){
+    switch (event_id) {
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "MQTT Connected!");
             break;
@@ -25,31 +23,27 @@ static void mqtt_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
 }
 
-void mqtt_init(void){	
+esp_err_t mqtt_init(int argc, char **argv) {
     ESP_LOGI(TAG, "Configuring MQTT client");
-	const esp_mqtt_client_config_t mqtt_config = {
-		.broker = {
-			.address = {
-				.uri = CONFIG_MQTT_URI
-			}
-		}
-	};
+    const esp_mqtt_client_config_t mqtt_config = {
+        .broker = {.address = {.uri = CONFIG_MQTT_URI}}};
 
-	ESP_LOGI(TAG, "Initializing MQTT client");
-	mqtt_client = esp_mqtt_client_init(&mqtt_config);
+    ESP_LOGI(TAG, "Initializing MQTT client");
+    mqtt_client = esp_mqtt_client_init(&mqtt_config);
 
-	ESP_ERROR_CHECK(esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_PUBLISHED, mqtt_event_handler, mqtt_client));
+    ESP_ERROR_CHECK(esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_PUBLISHED, mqtt_event_handler, mqtt_client));
     ESP_ERROR_CHECK(esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_DATA, mqtt_event_handler, mqtt_client));
     ESP_ERROR_CHECK(esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_DISCONNECTED, mqtt_event_handler, mqtt_client));
-
+    return ESP_OK;
 }
 
-void mqtt_start(void){
+esp_err_t mqtt_start(int argc, char **argv) {
     ESP_LOGI(TAG, "Starting MQTT client");
-	ESP_ERROR_CHECK(esp_mqtt_client_start(mqtt_client));
-	esp_mqtt_client_enqueue(mqtt_client, CONFIG_INITIAL_MESSAGE_TOPIC, CONFIG_INITIAL_MESSAGE_PAYLOAD, 0, 0, 0, true);
+    ESP_ERROR_CHECK(esp_mqtt_client_start(mqtt_client));
+    esp_mqtt_client_enqueue(mqtt_client, CONFIG_INITIAL_MESSAGE_TOPIC, CONFIG_INITIAL_MESSAGE_PAYLOAD, 0, 0, 0, true);
+    return ESP_OK;
 }
 
-void mqtt_send_message(char* topic, char* payload){
+void mqtt_send_message(const char *topic, const char *payload) {
     esp_mqtt_client_enqueue(mqtt_client, topic, payload, 0, 0, 0, true);
 }

@@ -1,27 +1,25 @@
 #include "main.h"
 
-
 static int retries = 0;
 
 static EventGroupHandle_t wifi_event_group;
 
-#define WIFI_CONNECTED      BIT0
-#define WIFI_FAILED         BIT1
+#define WIFI_CONNECTED BIT0
+#define WIFI_FAILED BIT1
 
-void nvs_init(void){
+void nvs_init() {
     ESP_LOGI(TAG, "Initializing NVS");
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-
 }
 
-static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     ESP_LOGI(TAG, "WIFI event handler called");
-    if (event_base == WIFI_EVENT){
+    if (event_base == WIFI_EVENT) {
         switch(event_id){
             case WIFI_EVENT_STA_START:
                 esp_wifi_connect();
@@ -34,26 +32,24 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
                 } else {
                     xEventGroupSetBits(wifi_event_group, WIFI_FAILED);
                 }
-                ESP_LOGE(TAG,"connect to the AP fail");
+                ESP_LOGE(TAG, "connect to the AP fail");
                 break;
         }
-    } 
-    else if (event_base == IP_EVENT){
-        switch(event_id){
-            case IP_EVENT_STA_GOT_IP:
-                ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-                ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-                retries = 0;
-                xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED);
-                break;
+    } else if (event_base == IP_EVENT) {
+        switch (event_id) {
+        case IP_EVENT_STA_GOT_IP:
+            ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+            ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+            retries = 0;
+            xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED);
+            break;
         }
-    }
-    else{
+    } else {
         ESP_LOGW(TAG, "Unhandled WiFi event ID: %ld", event_id);
     }
 }
 
-void wifi_init(void){
+esp_err_t wifi_init(int argc, char **argv) {
     ESP_LOGI(TAG, "Initializing WiFi");
     wifi_event_group = xEventGroupCreate();
 
@@ -68,15 +64,14 @@ void wifi_init(void){
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 
     wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASSWORD,
-            .threshold = {
-                .authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD
+        .sta =
+            {
+                .ssid = WIFI_SSID,
+                .password = WIFI_PASSWORD,
+                .threshold = {.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD},
+                .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
+                .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
             },
-            .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
-            .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
-        },
     };
 
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -92,9 +87,10 @@ void wifi_init(void){
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
 
     ESP_LOGI(TAG, "Finished initializing WiFi");
+    return ESP_OK;
 }
 
-void wifi_start(void){
+esp_err_t wifi_start(int argc, char **argv) {
     ESP_LOGI(TAG, "Starting WiFi");
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -111,4 +107,5 @@ void wifi_start(void){
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
     ESP_LOGI(TAG, "Successfully connected to WiFi");
+    return ESP_OK;
 }
